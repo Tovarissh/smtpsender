@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  smtpsender:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smtpsender-web
+    ports:
+      - "8080:8080"
+    volumes:
+      # 持久化发送结果和数据库
+      - ./data:/app/data
+      - ./output:/app/output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# 使用方式:
+#   docker-compose up -d         # 后台启动
+#   docker-compose logs -f       # 查看日志
+#   docker-compose down          # 停止
+#   访问: http://localhost:8080

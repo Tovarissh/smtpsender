@@ -1,0 +1,2 @@
+aiohttp>=3.9.0
+PySocks>=1.7.1

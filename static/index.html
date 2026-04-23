@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMTP群发控制台 v5.6</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* 深色主题 */
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: #16213e;
+            --accent-color: #0f3460;
+            --highlight-color: #e94560;
+            --text-color: #f0f0f0;
+            --border-color: #2a3c5e;
+            --success-color: #4caf50;
+            --error-color: #f44336;
+            --warn-color: #ff9800;
+            --info-color: #2196f3;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .header {
+            background-color: var(--accent-color);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--highlight-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .header .ws-status {
+            font-size: 14px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background-color: var(--panel-bg);
+        }
+        .ws-status.connected {
+            color: var(--success-color);
+        }
+        .ws-status.disconnected {
+            color: var(--error-color);
+        }
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .left-panel {
+            width: 40%;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .right-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+            gap: 16px;
+        }
+        .section {
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--highlight-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background-color: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+            resize: vertical;
+        }
+        textarea {
+            min-height: 80px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .input-label {
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #aaa;
+        }
+        .param-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .param-item {
+            flex: 1;
+            min-width: 100px;
+        }
+        .param-item label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #aaa;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .button-group button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .button-group button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-start {
+            background-color: var(--success-color);
+            color: white;
+        }
+        .btn-pause {
+            background-color: var(--warn-color);
+            color: white;
+        }
+        .btn-stop {
+            background-color: var(--error-color);
+            color: white;
+        }
+        .btn-verify {
+            background-color: var(--info-color);
+            color: white;
+        }
+        .btn-start:hover:not(:disabled) {
+            background-color: #388e3c;
+        }
+        .btn-pause:hover:not(:disabled) {
+            background-color: #f57c00;
+        }
+        .btn-stop:hover:not(:disabled) {
+            background-color: #d32f2f;
+        }
+        .btn-verify:hover:not(:disabled) {
+            background-color: #1976d2;
+        }
+        .progress-bar {
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            height: 30px;
+            margin-bottom: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: var(--highlight-color);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        .progress-stats span {
+            color: #aaa;
+        }
+        .logs {
+            flex: 1;
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            min-height: 200px;
+            max-height: 300px;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-entry.info {
+            color: var(--info-color);
+        }
+        .log-entry.warn {
+            color: var(--warn-color);
+        }
+        .log-entry.error {
+            color: var(--error-color);
+        }
+        .results {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+        .results-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .results-table th {
+            background-color: var(--accent-color);
+            padding: 8px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .results-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .results-table tr:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+        .status-success {
+            color: var(--success-color);
+        }
+        .status-failed {
+            color: var(--error-color);
+        }
+        .toggle-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .toggle-switch input {
+            display: none;
+        }
+        .toggle-slider {
+            width: 36px;
+            height: 18px;
+            background-color: #555;
+            border-radius: 9px;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: var(--highlight-color);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(18px);
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="app">
+        <!-- 顶部标题栏 -->
+        <div class="header">
+            <h1>SMTP群发控制台 v5.6</h1>
+            <div class="ws-status" :class="wsConnected ? 'connected' : 'disconnected'">
+                {{ wsConnected ? '● 已连接' : '● 连接断开' }}
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- 左侧配置面板 -->
+            <div class="left-panel">
+                <div class="section">
+                    <div class="section-title">SMTP账号 (每行 user:pass@host:port 或 user|pass|host|port)</div>
+                    <textarea v-model="config.smtpAccounts" placeholder="example: user:password@smtp.gmail.com:587
+user2|pass2|smtp.mail.yahoo.com:587"></textarea>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">收件人列表 (每行一个邮箱)</div>
+                    <textarea v-model="config.recipients" placeholder="recipient1@example.com
+recipient2@example.com"></textarea>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">邮件主题 (支持模板变量 {{"{{"}}name{{"}}"}})</div>
+                    <input type="text" v-model="config.subject" placeholder="Hello {{"{{"}}name{{"}}"}}, this is a test">
+                </div>
+
+                <div class="section">
+                    <div class="section-title">
+                        邮件正文
+                        <div class="toggle-switch">
+                            <input type="checkbox" v-model="config.bodyIsHtml" id="htmlToggle">
+                            <label for="htmlToggle" class="toggle-slider"></label>
+                            <span>{{ config.bodyIsHtml ? 'HTML' : '纯文本' }}</span>
+                        </div>
+                    </div>
+                    <textarea v-model="config.body" :placeholder="config.bodyIsHtml ? '<p>Hello {{'{{'}}name{{'}'}}}!</p>' : 'Hello {{'{{'}}name{{'}'}}}!'"></textarea>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">发送参数</div>
+                    <div class="param-row">
+                        <div class="param-item">
+                            <label>线程数</label>
+                            <input type="number" v-model.number="config.threads" min="1" max="50">
+                        </div>
+                        <div class="param-item">
+                            <label>延迟(ms)</label>
+                            <input type="number" v-model.number="config.delay" min="0" max="10000">
+                        </div>
+                        <div class="param-item">
+                            <label>超时(s)</label>
+                            <input type="number" v-model.number="config.timeout" min="5" max="300">
+                        </div>
+                        <div class="param-item">
+                            <label>重试次数</label>
+                            <input type="number" v-model.number="config.retry" min="0" max="10">
+                        </div>
+                        <div class="param-item">
+                            <label>单账号上限</label>
+                            <input type="number" v-model.number="config.maxPerAccount" min="1" max="1000">
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" v-model="config.dryRun">
+                            <span>Dry Run (测试模式)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" v-model="config.bccMode">
+                            <span>BCC密送模式</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">控制按钮</div>
+                    <div class="button-group">
+                        <button class="btn-start" @click="startSending" :disabled="sending || !configReady">
+                            {{ sending ? '发送中' : '开始发送' }}
+                        </button>
+                        <button class="btn-pause" @click="togglePause" :disabled="!sending">
+                            {{ paused ? '继续' : '暂停' }}
+                        </button>
+                        <button class="btn-stop" @click="stopSending" :disabled="!sending">
+                            停止
+                        </button>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-verify" @click="verifySmtp" :disabled="!config.smtpAccounts">
+                            验证SMTP账号
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧状态面板 -->
+            <div class="right-panel">
+                <div class="section">
+                    <div class="section-title">发送进度</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{ width: progressPercent + '%' }">
+                            {{ progressPercent.toFixed(1) }}%
+                        </div>
+                    </div>
+                    <div class="progress-stats">
+                        <span>完成: {{ progress.done }} / {{ progress.total }}</span>
+                        <span>成功: {{ progress.success }} | 失败: {{ progress.failed }}</span>
+                    </div>
+                </div>
+
+                <div class="section" style="flex: 2;">
+                    <div class="section-title">
+                        实时日志
+                        <span style="font-size: 13px; color: #aaa;">(最多{{ maxLogs }}条)</span>
+                    </div>
+                    <div class="logs" ref="logsContainer">
+                        <div v-for="log in logs" :class="'log-entry ' + log.level">
+                            [{{ log.time }}] {{ log.message }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" style="flex: 3;">
+                    <div class="section-title">
+                        发送结果
+                        <div class="results-controls">
+                            <div>
+                                <label style="margin-right: 10px;">
+                                    <input type="checkbox" v-model="filterShowSuccess"> 成功
+                                </label>
+                                <label>
+                                    <input type="checkbox" v-model="filterShowFailed"> 失败
+                                </label>
+                            </div>
+                            <span style="font-size: 13px; color: #aaa;">显示 {{ filteredResults.length }} / {{ results.length }} 条</span>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>收件人</th>
+                                    <th>SMTP账号</th>
+                                    <th>状态</th>
+                                    <th>时间戳</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="res in filteredResults">
+                                    <td>{{ res.recipient }}</td>
+                                    <td>{{ res.smtpAccount }}</td>
+                                    <td :class="'status-' + (res.success ? 'success' : 'failed')">
+                                        {{ res.success ? '成功' : '失败' }}
+                                    </td>
+                                    <td>{{ res.timestamp }}</td>
+                                </tr>
+                                <tr v-if="filteredResults.length === 0">
+                                    <td colspan="4" style="text-align: center; padding: 20px; color: #777;">
+                                        暂无结果
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // WebSocket连接
+                const ws = ref(null);
+                const wsConnected = ref(false);
+                const reconnectTimer = ref(null);
+
+                // 配置数据
+                const config = ref({
+                    smtpAccounts: '',
+                    recipients: '',
+                    subject: 'Hello {{name}}',
+                    body: '<p>Hello {{name}}, this is a test email.</p>',
+                    bodyIsHtml: true,
+                    threads: 5,
+                    delay: 100,
+                    timeout: 30,
+                    retry: 2,
+                    maxPerAccount: 50,
+                    dryRun: false,
+                    bccMode: false
+                });
+
+                // 状态
+                const sending = ref(false);
+                const paused = ref(false);
+                const progress = ref({ total: 0, done: 0, success: 0, failed: 0 });
+                const logs = ref([]);
+                const results = ref([]);
+                const maxLogs = 500;
+                const maxResults = 200;
+
+                // 过滤器
+                const filterShowSuccess = ref(true);
+                const filterShowFailed = ref(true);
+
+                // 计算属性
+                const configReady = computed(() => {
+                    return config.value.smtpAccounts.trim() && config.value.recipients.trim();
+                });
+
+                const progressPercent = computed(() => {
+                    return progress.value.total > 0 ? (progress.value.done / progress.value.total) * 100 : 0;
+                });
+
+                const filteredResults = computed(() => {
+                    let filtered = results.value;
+                    if (!filterShowSuccess.value || !filterShowFailed.value) {
+                        filtered = filtered.filter(res => 
+                            (filterShowSuccess.value && res.success) ||
+                            (filterShowFailed.value && !res.success)
+                        );
+                    }
+                    return filtered.slice(-maxResults); // 仅保留最后200条
+                });
+
+                // 工具函数
+                const addLog = (message, level = 'info') => {
+                    const time = new Date().toLocaleTimeString();
+                    logs.value.push({ time, message, level });
+                    if (logs.value.length > maxLogs) {
+                        logs.value.splice(0, logs.value.length - maxLogs);
+                    }
+                    // 自动滚动到底部
+                    nextTick(() => {
+                        const container = document.querySelector('.logs');
+                        if (container) container.scrollTop = container.scrollHeight;
+                    });
+                };
+
+                const addResult = (recipient, smtpAccount, success, message) => {
+                    const timestamp = new Date().toLocaleTimeString();
+                    results.value.push({
+                        recipient,
+                        smtpAccount,
+                        success,
+                        message,
+                        timestamp
+                    });
+                    if (results.value.length > maxResults) {
+                        results.value.splice(0, results.value.length - maxResults);
+                    }
+                    // 更新进度
+                    if (success) {
+                        progress.value.success++;
+                    } else {
+                        progress.value.failed++;
+                    }
+                    progress.value.done++;
+                };
+
+                const connectWebSocket = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const host = window.location.host;
+                    const wsUrl = `${protocol}//${host}/ws`;
+                    ws.value = new WebSocket(wsUrl);
+
+                    ws.value.onopen = () => {
+                        wsConnected.value = true;
+                        addLog('WebSocket连接已建立', 'info');
+                        if (reconnectTimer.value) {
+                            clearTimeout(reconnectTimer.value);
+                            reconnectTimer.value = null;
+                        }
+                    };
+
+                    ws.value.onclose = () => {
+                        wsConnected.value = false;
+                        addLog('WebSocket连接断开，3秒后重连...', 'warn');
+                        if (reconnectTimer.value) clearTimeout(reconnectTimer.value);
+                        reconnectTimer.value = setTimeout(connectWebSocket, 3000);
+                    };
+
+                    ws.value.onerror = (error) => {
+                        addLog('WebSocket错误: ' + error, 'error');
+                    };
+
+                    ws.value.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            handleWsMessage(data);
+                        } catch (e) {
+                            addLog('消息解析失败: ' + e, 'error');
+                        }
+                    };
+                };
+
+                const handleWsMessage = (data) => {
+                    const { type, payload } = data;
+                    switch (type) {
+                        case 'log':
+                            addLog(payload.message, payload.level);
+                            break;
+                        case 'progress':
+                            progress.value = payload;
+                            break;
+                        case 'result':
+                            addResult(payload.recipient, payload.smtpAccount, payload.success, payload.message);
+                            break;
+                        case 'sending_state':
+                            sending.value = payload.sending;
+                            paused.value = payload.paused;
+                            break;
+                    }
+                };
+
+                const callApi = async (endpoint, method = 'POST', body = null) => {
+                    const response = await fetch(`/api/${endpoint}`, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: body ? JSON.stringify(body) : null
+                    });
+                    if (!response.ok) throw new Error(`API错误: ${response.status}`);
+                    return await response.json();
+                };
+
+                const startSending = async () => {
+                    if (!configReady.value) return;
+                    sending.value = true;
+                    paused.value = false;
+                    progress.value = { total: 0, done: 0, success: 0, failed: 0 };
+                    results.value = [];
+                    addLog('开始发送任务...', 'info');
+                    try {
+                        const resp = await callApi('start', 'POST', {
+                            smtpAccounts: config.value.smtpAccounts,
+                            recipients: config.value.recipients,
+                            subject: config.value.subject,
+                            body: config.value.body,
+                            bodyIsHtml: config.value.bodyIsHtml,
+                            threads: config.value.threads,
+                            delay: config.value.delay,
+                            timeout: config.value.timeout,
+                            retry: config.value.retry,
+                            maxPerAccount: config.value.maxPerAccount,
+                            dryRun: config.value.dryRun,
+                            bccMode: config.value.bccMode
+                        });
+                        addLog(`任务已启动，ID: ${resp.taskId}`, 'info');
+                    } catch (e) {
+                        addLog('启动失败: ' + e.message, 'error');
+                        sending.value = false;
+                    }
+                };
+
+                const togglePause = async () => {
+                    try {
+                        if (paused.value) {
+                            await callApi('resume', 'POST');
+                            addLog('继续发送', 'info');
+                        } else {
+                            await callApi('pause', 'POST');
+                            addLog('暂停发送', 'info');
+                        }
+                    } catch (e) {
+                        addLog('暂停/继续操作失败: ' + e.message, 'error');
+                    }
+                };
+
+                const stopSending = async () => {
+                    try {
+                        await callApi('stop', 'POST');
+                        addLog('停止任务', 'info');
+                        sending.value = false;
+                        paused.value = false;
+                    } catch (e) {
+                        addLog('停止任务失败: ' + e.message, 'error');
+                    }
+                };
+
+                const verifySmtp = async () => {
+                    addLog('开始验证SMTP账号...', 'info');
+                    try {
+                        const resp = await callApi('verify', 'POST', {
+                            smtpAccounts: config.value.smtpAccounts
+                        });
+                        addLog(`验证完成，有效账号: ${resp.validCount}/${resp.totalCount}`, 'info');
+                    } catch (e) {
+                        addLog('验证失败: ' + e.message, 'error');
+                    }
+                };
+
+                // 生命周期
+                onMounted(() => {
+                    connectWebSocket();
+                });
+
+                onUnmounted(() => {
+                    if (ws.value) ws.value.close();
+                    if (reconnectTimer.value) clearTimeout(reconnectTimer.value);
+                });
+
+                return {
+                    wsConnected,
+                    config,
+                    sending,
+                    paused,
+                    progress,
+                    logs,
+                    results,
+                    maxLogs,
+                    filterShowSuccess,
+                    filterShowFailed,
+                    configReady,
+                    progressPercent,
+                    filteredResults,
+                    startSending,
+                    togglePause,
+                    stopSending,
+                    verifySmtp
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
